@@ -74,7 +74,7 @@ DEBUGFLAGS=
 # ---- Recetas ----
 
 # Recetas de uso general
-all: ${OUT}
+all: clean ${OUT}
 
 execute: ${OUT}
 ifeq (${DEBUG}, true)
