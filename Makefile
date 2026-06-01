@@ -67,7 +67,7 @@ endif
 
 # ---- Dependencias opcionales ----
 
-# GDB (para variable DEBUG). Versión mínima recomendada: 17.2.
+# GDB (para receta 'run' con DEBUG=true). Versión mínima recomendada: 17.2.
 DEBUGGER=gdb
 DEBUGFLAGS=
 

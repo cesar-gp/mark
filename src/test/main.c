@@ -1,13 +1,15 @@
 #include <string.h>
 #include <stdio.h>
 #include "assert.h"
-#include "parsertest.h"
+#include "testutf8.h"
 
 int main() {
-	printf("\n");
+	putc('\n', stdout);
 	
-	parserep_test();
+	test_utf8len();
+	test_utf8chars();
+	test_utf8decode();
 	
-	printf("\n");
+	putc('\n', stdout);
 	return 0;
 }

@@ -1,3 +1,5 @@
 #pragma once
 
-int parserep(char** in, char** buf, char c, bool write);
+#include <stdint.h>
+
+uint32_t consumewhile(char** in, char* str, uint32_t max);
