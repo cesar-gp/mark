@@ -2,17 +2,17 @@
 #include "assert.h"
 #include "out.h"
 
-void test_utf8len() {
-	out_start("utf8len");
+void test_utf8charlen() {
+	out_start("utf8charlen");
 
-	assert_uintequals(utf8len(""), 1);
-	assert_uintequals(utf8len("a"), 1);
-	assert_uintequals(utf8len("á"), 2);
-	assert_uintequals(utf8len("鿿"), 3);
-	assert_uintequals(utf8len("🇦"), 4);
-	assert_uintequals(utf8len("\x88"), 0);
-	assert_uintequals(utf8len("\xF8"), 0);
-	assert_uintequals(utf8len("\xFF"), 0);
+	assert_uintequals(utf8charlen(""), 1);
+	assert_uintequals(utf8charlen("a"), 1);
+	assert_uintequals(utf8charlen("á"), 2);
+	assert_uintequals(utf8charlen("鿿"), 3);
+	assert_uintequals(utf8charlen("🇦"), 4);
+	assert_uintequals(utf8charlen("\x88"), 0);
+	assert_uintequals(utf8charlen("\xF8"), 0);
+	assert_uintequals(utf8charlen("\xFF"), 0);
 
 	out_ok();
 }
@@ -20,16 +20,37 @@ void test_utf8len() {
 void test_utf8chars() {
 	out_start("utf8chars");
 
-	assert_uintequals(utf8chars(""), 0);
-	assert_uintequals(utf8chars("Test"), 4);
-	assert_uintequals(utf8chars("Árbol"), 5);
-	assert_uintequals(utf8chars("字test汉test"), 10);
-	assert_uintequals(utf8chars("\xC0\x80τ\0ξ"), 2);
-	assert_uintequals(utf8chars("\x95स्\xA0न\xB8"), 6);
-	assert_uintequals(utf8chars("Continuation\x80\0!"), 13);
-	assert_uintequals(utf8chars("First null test\xC0\0!"), 16);
-	assert_uintequals(utf8chars("Second null test\xE0\0!"), 17);
-	assert_uintequals(utf8chars("Third and last null test\xF0\0!"), 25);
+	uint32_t bytes;
+
+	assert_uintequals(utf8chars("", &bytes), 0);
+	assert_uintequals(bytes, 0);
+
+	assert_uintequals(utf8chars("Test", &bytes), 4);
+	assert_uintequals(bytes, 4);
+
+	assert_uintequals(utf8chars("Árbol", &bytes), 5);
+	assert_uintequals(bytes, 6);
+
+	assert_uintequals(utf8chars("字test汉test", &bytes), 10);
+	assert_uintequals(bytes, 14);
+
+	assert_uintequals(utf8chars("\xC0\x80τ\0ξ", &bytes), 2);
+	assert_uintequals(bytes, 4);
+
+	assert_uintequals(utf8chars("\x95स्\xA0न\xB8", &bytes), 6);
+	assert_uintequals(bytes, 12);
+
+	assert_uintequals(utf8chars("Continuation\x80\0!", &bytes), 13);
+	assert_uintequals(bytes, 13);
+
+	assert_uintequals(utf8chars("First null test\xC0\0!", &bytes), 16);
+	assert_uintequals(bytes, 16);
+
+	assert_uintequals(utf8chars("Second null test\xE0\0!", &bytes), 17);
+	assert_uintequals(bytes, 17);
+
+	assert_uintequals(utf8chars("Third and last null test\xF0\0!", &bytes), 25);
+	assert_uintequals(bytes, 25);
 
 	out_ok();
 }

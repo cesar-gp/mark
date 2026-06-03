@@ -10,7 +10,7 @@
  *	Salida:		0:		caracter inválido.
  *				[1,4]:	longitud del caracter en bytes.
  */
-uint8_t utf8len(const char* in) {
+uint8_t utf8charlen(const char* in) {
 	if((*in & 0x80) == 0x00) return 1;		// Caracter ASCII.
 	else if((*in & 0xE0) == 0xC0) return 2;	// De 2 bytes.
 	else if((*in & 0xF0) == 0xE0) return 3;	// De 3 bytes.
@@ -22,6 +22,9 @@ uint8_t utf8len(const char* in) {
  *	Devuelve el número de caracteres de una cadena de texto
  *	codificada en UTF-8 terminada en un byte nulo ('\0').
  * 
+ *	También devuelve el nº de bytes que ocupa la cadena en
+ *	en el buffer *bytes.
+ * 
  *	Si hay un caracter de longitud indefinida o de longitud
  *	menor a la indicada, cada uno de sus bytes será contado
  *	como un caracter distinto.
@@ -32,24 +35,28 @@ uint8_t utf8len(const char* in) {
  *	de la misma forma que un caracter UTF-8 válido.
  * 
  *	Entrada:	in:		pointer hacia cadena UTF-8.
+ *				bytes:	buffer para total de bytes.
  * 
  *	Salida:		número de caracteres de la cadena.
+ *				
+ *				Se sobreescribe *bytes.
  */
-uint32_t utf8chars(const char* in) {
-	uint32_t ret;
-	rec: for(ret = 0; *in; ret++) {
-		// Conseguir longitud y consumir primer byte.
-		uint8_t len = utf8len(in);
-		if(len == 0) len = 1;
-		in++;
+uint32_t utf8chars(const char* in, uint32_t* bytes) {
+	uint32_t ret;											// Caracteres.
+	uint32_t strlen = 0;									// Bytes.
 
-		// Recorrer bytes de continuación.
-		while(--len)
-			if((*in & 0xC0) != 0x80) continue rec;
-			else in++;
+	rec: for(ret = 0; in[strlen]; ret++) {					// Recorrer cadena.
+		uint8_t clen = utf8charlen(in + strlen);			// Leer bytes del sig. caracter.
+		if(clen == 0) clen = 1;								// ¿Inválido? Contar 1 byte.
+		strlen++;											// Contar caracter.
+
+		while(--clen)										// Leer bytes que lo forman.
+			if((in[strlen] & 0xC0) != 0x80) continue rec;	// ¿Inválido? Nuevo caracter.
+			else strlen++;									// ¿Válido? Contar byte.
 	}
 
-	return ret;
+	*bytes = strlen;										// Escribir bytes.
+	return ret;												// Devolver caracteres.
 }
 
 /**
@@ -87,57 +94,48 @@ uint32_t utf8chars(const char* in) {
  *				Se sobreescriben *out y *len.
  */
 uint8_t utf8decode(const char* in, uint32_t* out, uint8_t* len) {
-	// Calcular longitud de caracter y consumir primer byte.
-	*len = utf8len(in);
+	*len = utf8charlen(in);										// Copiar long. del caracter a '*len'.
 
 	switch(*len) {
-		case 1:
-			// Caracter ASCII. Devolver caracter directamente.
-			*out = (uint32_t) in[0];
-			return 0;
-		case 0:
-			// Primer byte inválido. Devolver error.
-			*len = 1;
-			return 1;
-		default:
-			// Caracter UTF-8. Extraer bits para codepoint.
-			*out = (uint32_t) (in[0] & (0xFF >> (*len + 1)));
+		case 1:													// ¿Caracter ASCII?
+			*out = (uint32_t) in[0];							//  | Copiar a '*out'.
+			return 0;											//  + Salir sin errores.
+		case 0:													// ¿Caracter inválido?
+			*len = 1;											//  | Escribir longitud de 1 byte.
+			return 1;											//  + Error.
+		default:												// ¿Caracter UTF-8?
+			*out = (uint32_t) (in[0] & (0xFF >> (*len + 1)));	//  + Codificar primer byte.
+			break;
 	}
 
-	// Decodificar los bytes de continuación.
-	uint8_t read = 1;
-	for(; read < *len && (in[read] & 0xC0) == 0x80; read++)
-		*out = (*out << 6) | (uint32_t) (in[read] & 0x3F);
+	uint8_t read = 1;											// Leer desde 2º byte.
+	for(; read < *len && (in[read] & 0xC0) == 0x80; read++)		// Consumir bytes de continuación.
+		*out = (*out << 6) | (uint32_t) (in[read] & 0x3F);		// Codificarlos.
 
-	// ¿Mide menos de lo previsto? Error.
-	if(read < *len) {
-		*len = read;
-		return 2;
+	if(read < *len) {											// ¿Mide menos de lo indicado?
+		*len = read;											//  | Copiar bytes leídos a '*len'.
+		return 2;												//  + Error.
 	}
 
-	// ¿Mide más de lo previsto? Error.
-	if((in[read] & 0xC0) == 0x80) return 3;
+	if((in[read] & 0xC0) == 0x80)								// ¿Mide más de lo indicado?
+		return 3;												//  + No leer siguientes. Error.
 
 	switch((uint8_t) in[0]) {
 		case 0xC0:
 		case 0xC1:
-			// Overlong encoding de 2 bytes.
-			return 4;
-		case 0xE0:
-			// Overlong encoding de 3 bytes.
-			if((uint8_t) in[1] < 0xA0) return 4;
-			break;
-		case 0xED:
-			// Caracter de sustitución (surrogate).
-			if((uint8_t) in[1] >= 0xA0) return 5;
+			return 4;											// ¿Overlong encoding de 2 bytes? Error.
+		case 0xE0:												
+			if((uint8_t) in[1] < 0xA0) return 4;				// ¿Overlong encoding de 3 bytes? Error.
 			break;
 		case 0xF0:
-			// Overlong encoding de 4 bytes.
-			if((uint8_t) in[1] < 0x90) return 4;
+			if((uint8_t) in[1] < 0x90) return 4;				// ¿Overlong encoding de 4 bytes? Error.
+			break;
+		case 0xED:
+			if((uint8_t) in[1] >= 0xA0) return 5;				// ¿Surrogate de UTF-16? Error.
+			break;
 	}
 
-	// ¿Codepoint fuera de límites? Error.
-	if(*out > 0x0010FFFF) return 6;
+	if(*out > 0x0010FFFF) return 6;								// ¿Codepoint fuera de límites? Error.
 
 	return 0;
 }

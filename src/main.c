@@ -1,13 +1,12 @@
 #include "parser.h"
 #include "utf8.h"
 
+#include <string.h>
+
 #include <stdio.h>
 
 int main() {
-	char* in = "####### Título";
-	printf("%s\n", in);
+	// TODO: Intérprete de Markdown.
 
-	consumewhile(&in, "#", 6);
-	printf("%s\n", in);
 	return 0;
 }
